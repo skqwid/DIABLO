@@ -64,7 +64,7 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(kick_members=True)
     async def kick(self, ctx, member : discord.Member, *, reason=None):
-        await member.kick(reason=reason)
+        await member.kick(reason=f'{ctx.author.name}#{ctx.author.discriminator}: {reason}')
         embed=discord.Embed(title=f":boot: **{member}** `{member.id}` Kicked", description=f"{member} was kicked for {reason}", color=diablocolor)
         await ctx.send(embed=embed)
     @kick.error
@@ -152,7 +152,7 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(ban_members=True)
     async def ban(self, ctx, member : discord.Member, *,  reason=None):
-        await member.ban(reason=reason)
+        await member.ban(reason=f'{ctx.author.name}#{ctx.author.discriminator}: {reason}')
         embed=discord.Embed(title=f"**{member}** `{member.id}` Banned", description=f"{member} was banned for {reason}", color=diablocolor)
         await ctx.send(embed=embed)
     @ban.error

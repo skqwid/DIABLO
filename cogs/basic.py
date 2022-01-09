@@ -14,10 +14,6 @@ class Basic(commands.Cog):
     @commands.Cog.listener()
     # activation procedure
     async def on_ready(self):
-        await self.client.change_presence(
-            status=discord.Status.online
-        )
-        print('Activated!')
         await self.server_count.start()
 
     @tasks.loop(minutes=60.0)
@@ -115,7 +111,7 @@ class Basic(commands.Cog):
     @commands.command()
     @commands.guild_only()
     async def source(self, ctx):
-        embed=discord.Embed(title="Source", url="https://github.com/incipious/DIABLO", description="Here's the source link for Diablo.", color=diablocolor)
+        embed=discord.Embed(title="Source", url="https://github.com/incipious/DIABLO/tree/master", description="Here's the source link for Diablo.", color=diablocolor)
         await ctx.send(embed=embed)
 
     # whatdadogdoing

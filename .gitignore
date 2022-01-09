@@ -1,6 +1,8 @@
 config.json
 /cogs/admin.py
 /cogs/report.py
+/cogs/__pycache__
+/utils/__pycache__
 /__pycache__
 /venv
 /.idea

@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from pymongo import MongoClient
 from datetime import datetime
 from utils import default
@@ -54,10 +54,11 @@ class AutoBan(commands.Cog):
         offense = collection.find_one({"userid":member.id})
 
         if offense is not None:
-            await member.ban(reason=offense["reason"])
+            await member.ban(reason=f'Diablo Autoban - {offense["reason"]}')
 
             gb = open(f"global_bans.txt", "w")
             gb.write(str(int(gbr_num) + 1))
+            print(f'{member.name} was banned in {member.guild.name}')
             gb.close()
             gbr.close()
 
@@ -168,7 +169,7 @@ class AutoBan(commands.Cog):
                                 )
 
                             await start_embed.delete()
-                            await member_object.ban(reason=person["reason"])
+                            await member_object.ban(reason=f'Diablo Scan - {person["reason"]}')
                             print("Got it! x2")
 
                             gb = open(f"global_bans.txt", "w")
