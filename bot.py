@@ -1,6 +1,6 @@
 """
     DIABLO - A bot that bans pedos and zoos
-    (C) 2020-2022 incipious. All rights reserved.
+    (C) 2022 incipious. All rights reserved.
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
@@ -34,14 +34,11 @@ api.start_loop()
 
 @client.event
 async def on_ready():
-    log_channel = client.get_guild(753028931686498424).get_channel(928414146981150771)
-
     await client.change_presence(
         status=discord.Status.online
     )
 
     print('Activated!')
-    await log_channel.send("Fully Activated! :white_check_mark:")
 
 # CommandNotFound
 @client.event
@@ -106,4 +103,4 @@ for filename in os.listdir("./cogs"):
     if filename.endswith(".py"):
         client.load_extension(f"cogs.{filename[:-3]}")
 
-client.run(config.testToken)
+client.run(config.token)

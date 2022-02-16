@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 from pymongo import MongoClient
 from datetime import datetime
 from utils import default
@@ -53,36 +53,49 @@ class AutoBan(commands.Cog):
         gbr_num = int(gbr.read())
         offense = collection.find_one({"userid":member.id})
 
-        if offense is not None:
-            await member.ban(reason=f'Diablo Autoban - {offense["reason"]}')
-
-            gb = open(f"global_bans.txt", "w")
-            gb.write(str(int(gbr_num) + 1))
-            print(f'{member.name} was banned in {member.guild.name}')
-            gb.close()
-            gbr.close()
-
-            bans_channel = discord.utils.get(member.guild.text_channels, name='diablobans')
-            if bans_channel is None:
-                overwrites = {
-                    member.guild.default_role: discord.PermissionOverwrite(send_messages=False)
-                }
-                bans_channel = await member.guild.create_text_channel(
-                    name="diablobans",
-                    topic="Lists the offenders that join the server. :warning: MIGHT BE NSFW, DISABLE AT OWN RISK.",
-                    overwrites=overwrites,
-                    nsfw=True
+        if not member.guild.id == 938928674294628443:
+            if offense is not None:
+                appeal_embed = discord.Embed(
+                    title="You cannot join this server.",
+                    description="You are recognized as an offender, or someone who is deemed to be in violation of our guidelines, which has signifant "
+                                "overlap with international and US federal law, as well as Discord TOS."
                 )
+                appeal_embed.add_field(name='Reason', value=str(offense["reason"]), inline=False)
+                appeal_embed.set_footer(
+                    text='If you believe you were wrongfully added to DIABLO per the reason provided, you are entitled to a review by our appeals panel. Simply join the server I sent you and review the Appeals Guidelines before requesting an appeal.')
+                await member.send(embed=appeal_embed)
+                appeals_link = await self.client.get_guild(938928674294628443).get_channel(938943732240220161).create_invite(max_age=0, max_uses=1, reason=f'Created for appellant {member.name}#{member.discriminator} | {member.id}')
+                await member.send(appeals_link)
 
-            embed = discord.Embed(
-                description=f'**{member}** has attempted to join the server, but was blocked by Diablo.',
-                timestamp=member.joined_at,
-                color=diablocolor
-            )
-            embed.set_thumbnail(url=member.avatar_url)
-            embed.set_author(name='OFFENDER JOINED', icon_url=member.avatar_url)
-            embed.add_field(name='Reason', value=str(offense["reason"]), inline=False)
-            await bans_channel.send(embed=embed)
+                await member.ban(reason=f'Diablo Autoban - {offense["reason"]}')
+
+                with open(f"global_bans.txt", "w") as gb:
+                    gb.write(str(int(gbr_num) + 1))
+                print(f'{member.name} was banned in {member.guild.name}')
+
+                gbr.close()
+
+                bans_channel = discord.utils.get(member.guild.text_channels, name='diablobans')
+                if bans_channel is None:
+                    overwrites = {
+                        member.guild.default_role: discord.PermissionOverwrite(send_messages=False)
+                    }
+                    bans_channel = await member.guild.create_text_channel(
+                        name="diablobans",
+                        topic="Lists the offenders that join the server. :warning: MIGHT BE NSFW, DISABLE AT OWN RISK.",
+                        overwrites=overwrites,
+                        nsfw=True
+                    )
+
+                embed = discord.Embed(
+                    title="DIABLO prevented a predator from entering this server.",
+                    description=f'**{member}** has attempted to join the server, but was blocked by Diablo.',
+                    timestamp=member.joined_at,
+                    color=diablocolor
+                )
+                embed.set_thumbnail(url=member.avatar_url)
+                embed.add_field(name='Reason', value=str(offense["reason"]), inline=False)
+                await bans_channel.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
@@ -170,13 +183,13 @@ class AutoBan(commands.Cog):
 
                             await start_embed.delete()
                             await member_object.ban(reason=f'Diablo Scan - {person["reason"]}')
-                            print("Got it! x2")
 
                             gb = open(f"global_bans.txt", "w")
                             gb.write(str(int(gbr_num) + 1))
                             gb.close()
                             gbr.close()
 
+                            await ctx.message.reply(content="Server-wide scan completed.")
                             embed = discord.Embed(
                                 title="Offender Spotted",
                                 description=f'**{member_object.name}** (ID: {member_object.id}) was spotted by Diablo and was promptly banned.',
@@ -186,8 +199,10 @@ class AutoBan(commands.Cog):
                             embed.set_thumbnail(url=member_object.avatar_url)
                             embed.add_field(name='Reason', value=str(person["reason"]), inline=False)
                             await bans_channel.send(embed=embed)
+
                         elif str(rctn) == "❗":
                             await start_embed.delete()
+                            await ctx.message.reply(content="Server-wide scan completed and results sent to your direct messages.")
 
                             embed = discord.Embed(
                                 title="Offender Spotted",
@@ -202,13 +217,16 @@ class AutoBan(commands.Cog):
 
             elif sum(x is not None for x in check_offenses) == 0:
                 await start_embed.delete()
+
+                await ctx.message.reply(content="Server-wide scan completed and results sent to your direct messages.")
+
                 embed = discord.Embed(
                     title="Scan",
                     description='Server-wide scan by Diablo has yielded no offenders :tada:',
                     color=discord.Colour.green(),
                     timestamp=datetime.utcnow()
                 )
-                await ctx.send(embed=embed)
+                await ctx.author.send(embed=embed)
 
     # Total number of Diablo offenders
     @commands.command()

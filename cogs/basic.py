@@ -2,8 +2,14 @@ import discord
 from discord.ext import commands, tasks
 from datetime import datetime
 import random
+from pymongo import MongoClient
+from utils import default
 
 diablocolor = 0x1551b3
+config = default.get("config.json")
+
+cluster = MongoClient(config.mongoKey)
+db = cluster["DIABLO"]
 
 class Basic(commands.Cog):
 
@@ -18,8 +24,9 @@ class Basic(commands.Cog):
 
     @tasks.loop(minutes=60.0)
     async def server_count(self):
+        game = discord.Activity(name=f"{len(self.client.guilds)} servers || d.help for commands", type=discord.ActivityType.watching)
         await self.client.change_presence(
-            activity=discord.Game(f"{len(self.client.guilds)} servers || d.help for commands")
+            activity=game
         )
 
     # Message sent when Diablo joins.
@@ -50,7 +57,7 @@ class Basic(commands.Cog):
             name='Bot Setup',
             value="After Diablo has been invited into your server, the only thing you should do is elevate Diablo's role above all the server members"
                   "and have permission to ban users. "
-                  "**Diablo will not work without having this setting.**",
+                  "\n⚠ **Diablo will not work without having this setting.**",
             inline=False
         )
         embed.add_field(
@@ -69,9 +76,11 @@ class Basic(commands.Cog):
     @commands.command()
     @commands.guild_only()
     async def whois(self, ctx, member : discord.Member=None):
+        collection = db["Offender List"]
         if member is None:
             member = ctx.message.author
 
+        offended = collection.find_one({"userid": int(member.id)})
         embed=discord.Embed(color=diablocolor)
         embed.set_thumbnail(url=member.avatar_url)
         embed.add_field(name='User ID:', value=member.id, inline=False)
@@ -79,11 +88,12 @@ class Basic(commands.Cog):
         embed.add_field(name='Joined Server at:', value=member.joined_at.strftime(f"%A, %B %d %Y at %I:%M %p"), inline=False)
         embed.add_field(name='Created at:', value=member.created_at.strftime(f"%A, %B %d %Y at %I:%M %p"), inline=False)
         embed.add_field(name='Top Role:', value=member.top_role, inline=False)
+        embed.add_field(name='Is Banned?', value=str("Yes" if offended is not None else "No"))
         embed.add_field(name='Is Bot?', value=member.bot, inline=False)
         embed.add_field(name='Boosting Since:', value=member.premium_since, inline=False)
         embed.set_author(name=f"{member}'s Information", icon_url=member.avatar_url)
 
-        await ctx.send(embed=embed)
+        await ctx.message.reply(embed=embed)
 
     # about
     @commands.command(aliases=['ping', 'servers'])
@@ -105,14 +115,14 @@ class Basic(commands.Cog):
             embed.add_field(name="API Latency", value=f'{(round(self.client.latency * 1000))} ms')
             embed.add_field(name="Global Bans (As of Oct 2021)", value=str(gb.read()))
             embed.set_thumbnail(url=self.client.user.avatar_url)
-            await ctx.send(embed=embed)
+            await ctx.message.reply(embed=embed)
 
     # Source Link
     @commands.command()
     @commands.guild_only()
     async def source(self, ctx):
-        embed=discord.Embed(title="Source", url="https://github.com/incipious/DIABLO/tree/master", description="Here's the source link for Diablo.", color=diablocolor)
-        await ctx.send(embed=embed)
+        embed=discord.Embed(title="Source", url="https://github.com/incipious/DIABLO", description="Here's the source link for Diablo.", color=diablocolor)
+        await ctx.message.reply(embed=embed)
 
     # whatdadogdoing
     @commands.command(aliases=['whatdadogdoin'])
@@ -130,7 +140,7 @@ class Basic(commands.Cog):
 
         embed=discord.Embed(title="Not you, you creep.", color=diablocolor)
         embed.set_image(url=random.choice(dog_gifs))
-        await ctx.send(embed=embed)
+        await ctx.message.reply(embed=embed)
 
     # Vote Command
     @commands.command()
@@ -142,7 +152,7 @@ class Basic(commands.Cog):
                                           "The best way you can help is by voting for us on Top.GG!",
                               color=diablocolor)
         embed.set_image(url="https://i.imgur.com/Z6swN2y.png")
-        await ctx.send(embed=embed)
+        await ctx.message.reply(embed=embed)
 
 
 def setup(client):
