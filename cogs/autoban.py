@@ -1,7 +1,7 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from pymongo import MongoClient
-from datetime import datetime
+import datetime
 from utils import default
 import asyncio
 
@@ -17,6 +17,11 @@ class AutoBan(commands.Cog):
 
     def __init__(self, client):
         self.client = client
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        await self.client.wait_until_ready()
+        await self.bloat_cleaner.start()
 
     # specify a channel where you want diablo log messages
     @commands.command()
@@ -37,7 +42,7 @@ class AutoBan(commands.Cog):
             embed = discord.Embed(
                 description=":thumbsup: Channel successfully created. The server will be notified if an offender joins.",
                 color=diablocolor,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.datetime.utcnow()
             )
             await ctx.send(embed=embed)
         else:
@@ -137,7 +142,7 @@ class AutoBan(commands.Cog):
                         "\n\n**Notify** (❗) - Will notify you of any potential matches in our database, no autoban."
                         "\n\n**Ban** (🔨) - Will notify the server of any potential matches in our database and will autoban.",
             color=diablocolor,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.datetime.utcnow()
         )
         embed.set_footer(text="Please be patient as Diablo Scan operates.")
         start_embed = await ctx.send(embed=embed)
@@ -194,7 +199,7 @@ class AutoBan(commands.Cog):
                                 title="Offender Spotted",
                                 description=f'**{member_object.name}** (ID: {member_object.id}) was spotted by Diablo and was promptly banned.',
                                 color=diablocolor,
-                                timestamp=datetime.utcnow()
+                                timestamp=datetime.datetime.utcnow()
                             )
                             embed.set_thumbnail(url=member_object.avatar_url)
                             embed.add_field(name='Reason', value=str(person["reason"]), inline=False)
@@ -209,7 +214,7 @@ class AutoBan(commands.Cog):
                                 description=f'**{member_object.name}** (ID: {member_object.id}) is present on Diablo database. '
                                             f'We highly encourage you take action upon these findings.',
                                 color=diablocolor,
-                                timestamp=datetime.utcnow()
+                                timestamp=datetime.datetime.utcnow()
                             )
                             embed.set_thumbnail(url=member_object.avatar_url)
                             embed.add_field(name='Reason', value=str(person["reason"]), inline=False)
@@ -224,7 +229,7 @@ class AutoBan(commands.Cog):
                     title="Scan",
                     description='Server-wide scan by Diablo has yielded no offenders :tada:',
                     color=discord.Colour.green(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.datetime.utcnow()
                 )
                 await ctx.author.send(embed=embed)
 
@@ -237,10 +242,37 @@ class AutoBan(commands.Cog):
                 title=":axe: Offenders",
                 description=f'There are exactly **{collection.count_documents({})} offenders** on Diablo.',
                 color=diablocolor,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.datetime.utcnow()
             )
             embed.add_field(name="Global Bans (As of Oct 2021)", value=str(int(gb.read())))
             await ctx.send(embed=embed)
+
+    @tasks.loop(hours=24.0)
+    async def bloat_cleaner(self):
+        await self.client.wait_until_ready()
+
+        day_of_month = int(datetime.date.today().strftime("%d"))
+
+        offenderList = collection.find()
+        cleanedList = []
+
+        if day_of_month == int(28):
+            print("Automatic database bloat cleaner initiated.")  # Just to see if it works in logs.
+            for offender in offenderList:
+                try:
+                    discordable = await self.client.fetch_user(int(offender['userid']))
+                    await asyncio.sleep(.8)
+                except discord.NotFound:
+                    cleanedList.append(int(offender['userid']))
+
+            print(f'{int(len(cleanedList))} IDs are invalid, deletion process commencing.')
+
+            for x in cleanedList:
+                print(collection.delete_one({"userid":int(x)}))
+                await asyncio.sleep(1)
+
+            cleanedList.clear()
+            print("Database bloat cleaning process complete. See you next month.")
 
 def setup(client):
     client.add_cog(AutoBan(client))
