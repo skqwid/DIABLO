@@ -15,6 +15,7 @@
 # DIABLO: Database Influenced Automated Ban List of Offenders
 
 import discord
+from discord import Option
 import os
 from discord.ext import commands
 import statcord
@@ -25,6 +26,7 @@ config = default.get("config.json")
 intents = discord.Intents.default()
 intents.members = True
 intents.guilds = True
+
 client = commands.Bot(command_prefix = 'd.', intents=intents)
 
 #STATCORD SO I CAN SEE STATS
@@ -34,6 +36,7 @@ api.start_loop()
 
 @client.event
 async def on_ready():
+    await client.wait_until_ready()
     await client.change_presence(
         status=discord.Status.online
     )
@@ -44,22 +47,32 @@ async def on_ready():
 @client.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
-        embed = discord.Embed(title=":octagonal_sign: This command does not exist", description="Use `d.help` to get a full list of commands", color=0xCD1F1F)
-        await ctx.send(embed=embed, delete_after=3.5)
+        embed = discord.Embed(title=":octagonal_sign: Something went wrong", description=f'```{error}```', color=discord.Color.red())
+        embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+        await ctx.respond(embed=embed)
 
 # Missing Permissions Error
 @client.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        embed = discord.Embed(description=":octagonal_sign: You do not have the correct permissions to run this command.", color=0xCD1F1F)
-        await ctx.send(embed=embed, delete_after=3.5)
+        embed = discord.Embed(title=":octagonal_sign: Something went wrong", description=f'```{error}```', color=discord.Color.red())
+        embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+        await ctx.respond(embed=embed)
+
+# NotOwner
+@client.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.NotOwner):
+        embed = discord.Embed(title=":octagonal_sign: Something went wrong", description=f'You are unable to run this command.```{error}```', color=discord.Color.red())
+        await ctx.respond(embed=embed)
 
 # Cooldown Error
 @client.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
-        embed = discord.Embed(description=f":octagonal_sign: Command is on cooldown. Try again in **{round(error.retry_after)}** seconds.", color=0xCD1F1F)
-        await ctx.send(embed=embed, delete_after=3.5)
+        embed = discord.Embed(title=":octagonal_sign: Something went wrong", description=f'```{error}```', color=0xCD1F1F)
+        embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+        await ctx.respond(embed=embed)
 
 @client.event
 async def on_command(ctx):
@@ -68,36 +81,33 @@ async def on_command(ctx):
     except:
         pass
 
-@client.command(hidden=True)
+@client.slash_command(name="load", description="Load cog (owner-specific)", guild_only=True, guild_ids=config.guildCocktail)
 @commands.is_owner()
-@commands.guild_only()
-async def load(ctx, extension):
+async def load(ctx, extension : Option(str, description="Which cog (lowercase):")):
     try:
         client.load_extension(f"cogs.{extension}")
-        await ctx.message.add_reaction("👍")
+        await ctx.respond("👍")
     except:
-        await ctx.message.add_reaction("👎")
+        await ctx.respond("👎")
 
-@client.command(hidden=True)
+@client.slash_command(name="unload", description="Unload cog (owner-specific)", guild_only=True, guild_ids=config.guildCocktail)
 @commands.is_owner()
-@commands.guild_only()
-async def unload(ctx, extension):
+async def unload(ctx, extension : Option(str, description="Which cog (lowercase):")):
     try:
         client.unload_extension(f"cogs.{extension}")
-        await ctx.message.add_reaction("👍")
+        await ctx.respond("👍")
     except:
-        await ctx.message.add_reaction("👎")
+        await ctx.respond("👎")
 
-@client.command(hidden=True)
+@client.slash_command(name="reload", description="Reload cog (owner-specific)", guild_only=True, guild_ids=config.guildCocktail)
 @commands.is_owner()
-@commands.guild_only()
-async def reload(ctx, extension):
+async def reload(ctx, extension : Option(str, description="Which cog (lowercase):")):
     try:
         client.unload_extension(f"cogs.{extension}")
         client.load_extension(f"cogs.{extension}")
-        await ctx.message.add_reaction("👍")
+        await ctx.respond("👍")
     except:
-        await ctx.message.add_reaction("👎")
+        await ctx.respond("👎")
 
 for filename in os.listdir("./cogs"):
     if filename.endswith(".py"):

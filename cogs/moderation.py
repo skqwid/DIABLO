@@ -1,7 +1,14 @@
+import datetime
+
 import discord
-from discord.ext import commands, tasks
+from discord import Option
+from discord.ext import commands
+from discord.commands import slash_command
 from pymongo import MongoClient
+
+import cogs.moderation
 from utils import default
+import asyncio
 
 config = default.get("config.json")
 
@@ -15,157 +22,103 @@ class Moderation(commands.Cog):
 
     def __init__(self, client):
         self.client = client
-        self.warnings_delete.start()
 
     # mute
-    @commands.command()
-    @commands.guild_only()
-    @commands.has_permissions(manage_messages=True)
-    async def mute(self, ctx, member : discord.Member):
-        muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
-        if not muted_role:
-            await ctx.guild.create_role(name="Muted", permissions=(discord.Permissions(send_messages=False, speak=False)))
-        await member.add_roles(muted_role)
-        embed = discord.Embed(description=f"{member.name} has been muted.", color=diablocolor)
-        await ctx.send(embed=embed)
+    @slash_command(name="mute", description="Mutes a member for a specified number of minutes.", guild_only=True)
+    @commands.has_permissions(moderate_members=True)
+    async def mute(self, ctx, member : Option(discord.Member, description="Input user:"), minutes: Option(int, description="How long do you want this person to be muted for?"), *, reason : Option(str, description="What for?", required=False)):
+        if int(minutes) <= 0:
+            await ctx.respond("I cannot perform this operation.")
+        else:
+            duration = datetime.timedelta(minutes=minutes)
+            await member.timeout_for(duration, reason=f'{ctx.author.name}#{ctx.author.discriminator}: {reason}')
+
+            embed = discord.Embed(color=diablocolor)
+            embed.set_author(name=f'{member.name}#{member.discriminator} Muted', icon_url=member.display_avatar)
+            embed.add_field(name="Duration", value=f'{duration} *(Hours/Minutes/Seconds)*')
+            await ctx.respond(embed=embed)
     @mute.error
     async def mute_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed=discord.Embed(description="Please specify a user to mute.", color=0xCD1F1F)
-            await ctx.send(embed=embed, delete_after=2.0)
-        elif isinstance(error, commands.BadArgument):
-            embed=discord.Embed(description="Either tag the user you want to mute or be sure to check you wrote their name correctly.", color=0xCD1F1F)
-            await ctx.send(embed=embed, delete_after=2.0)
+        if isinstance(error, commands.MissingPermissions):
+            embed=discord.Embed(title="Something went wrong... ⚠", description=f"```{error}```", color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            await ctx.send(embed=embed)
+        else:
+            embed = discord.Embed(title="Something went wrong... ⚠", description=f'```{error}```', color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            await ctx.respond(embed=embed)
 
     # unmute
-    @commands.command()
-    @commands.guild_only()
-    @commands.has_permissions(manage_messages=True)
-    async def unmute(self, ctx, member : discord.Member):
-        muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
-        if muted_role not in member.roles:
-            embed = discord.Embed(description="User is not muted", color=0xCD1F1F)
-            await ctx.send(embed=embed)
-        else:
-            await member.remove_roles(muted_role)
-            embed = discord.Embed(description=f"{member.name} has been unmuted.", color=diablocolor)
-            await ctx.send(embed=embed)
+    @slash_command(name="unmute", description="Unmute a previously muted member.", guild_only=True)
+    @commands.has_permissions(moderate_members=True)
+    async def unmute(self, ctx, member : Option(discord.Member, description="Input user:")):
+        await member.remove_timeout()
+        embed = discord.Embed(color=diablocolor)
+        embed.set_author(name=f'{member.name}#{member.discriminator} Unmuted', icon_url=member.display_avatar)
+        await ctx.respond(embed=embed)
     @unmute.error
     async def unmute_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed=discord.Embed(description="Please specify a user to unmute.", color=0xCD1F1F)
-            await ctx.send(embed=embed, delete_after=2.0)
-        elif isinstance(error, commands.BadArgument):
-            embed=discord.Embed(description="Either tag the user you want to mute or be sure to check you wrote their name correctly.", color=0xCD1F1F)
-            await ctx.send(embed=embed, delete_after=2.0)
+        if isinstance(error, commands.MissingPermissions):
+            embed=discord.Embed(title="Something went wrong... ⚠", description=f"```{error}```", color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            await ctx.send(embed=embed)
+        else:
+            embed = discord.Embed(title="Something went wrong... ⚠", description=f'```{error}```', color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            await ctx.respond(embed=embed)
 
     # Kick command
-    @commands.command()
-    @commands.guild_only()
+    @slash_command(name="kick", description="Kicks a user from the server", guild_only=True)
     @commands.has_permissions(kick_members=True)
-    async def kick(self, ctx, member : discord.Member, *, reason=None):
-        await member.kick(reason=f'{ctx.author.name}#{ctx.author.discriminator}: {reason}')
-        embed=discord.Embed(title=f":boot: **{member}** `{member.id}` Kicked", description=f"{member} was kicked for {reason}", color=diablocolor)
-        await ctx.send(embed=embed)
+    async def kick(self, ctx, member : Option(discord.Member, description="Input user:"), reason : Option(str, description="Reason:", required=False)):
+        if member.id == ctx.author.id:
+            await ctx.respond("You cannot kick yourself.", delete_after=5.0)
+        elif member.id == self.client.user.id:
+            await ctx.respond("I'm sorry that this isn't working out, but I can't kick myself.", delete_after=5.0)
+        else:
+            await member.kick(reason=f'{ctx.author.name}#{ctx.author.discriminator}: {reason}')
+            embed=discord.Embed(color=diablocolor)
+            embed.add_field(name="Reason", value=str(reason))
+            embed.set_author(name=f"{member.name}#{member.discriminator} Kicked", icon_url=str(member.display_avatar))
+            await ctx.respond(embed=embed)
     @kick.error
     async def kick_error(self, ctx, error):
-            if isinstance(error, commands.MissingRequiredArgument):
-                embed=discord.Embed(description=":octagonal_sign: Please specify a user to kick.", color=0xCD1F1F)
-                await ctx.send(embed=embed, delete_after=2.0)
-            elif isinstance(error, commands.BadArgument):
-                embed=discord.Embed(description=":octagonal_sign: Either tag the user you want to kick or be sure to check you wrote their name correctly.", color=0xCD1F1F)
-                await ctx.send(embed=embed, delete_after=2.0)
-
-    # Warn
-    @commands.command()
-    @commands.guild_only()
-    @commands.has_permissions(manage_messages=True)
-    @commands.cooldown(rate=1, per=3.5, type=commands.BucketType.user)
-    async def warn(self, ctx, member : discord.Member, *, reason=None):
-        if reason is None:
-            embed = discord.Embed(description=f":octagonal_sign: Please provide a reason.", color=0xCD1F1F)
-            await ctx.send(embed=embed)
-        elif member == ctx.author:
-            embed = discord.Embed(description=f"Why are you warning yourself? :thinking:", color=0x8636d1)
-            await ctx.send(embed=embed)
-        else:
-            embed = discord.Embed(
-                description=f"You have been warned in **{ctx.guild.name}**",
-                color=diablocolor
-            )
-            embed.add_field(name="Reason", value=str(reason))
-            embed.set_author(name=f'Warning', url=member.avatar_url)
-            await member.send(embed=embed)
-
-            embed2 = discord.Embed(
-                description=f"{member} has been warned.",
-                color=diablocolor
-            )
-            embed2.add_field(name="Reason", value=str(reason))
-            embed2.set_author(name=f'{member} Warned', url=member.avatar_url)
-            await ctx.send(embed=embed2)
-
-            warning = {"userid":member.id}
-            collection.insert_one(warning)
-    @warn.error
-    async def warn_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(description=":octagonal_sign: Please specify a user to warn.", color=0xCD1F1F)
-            await ctx.send(embed=embed, delete_after=2.0)
-        elif isinstance(error, commands.BadArgument):
-            embed = discord.Embed(description=":octagonal_sign: Either tag the user you want to warn or be sure to check you wrote their name correctly.", color=0xCD1F1F)
-            await ctx.send(embed=embed, delete_after=2.0)
-
-    @commands.command()
-    @commands.guild_only()
-    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
-    async def warnings(self, ctx, member : discord.Member):
-        infractions = collection.count_documents({"userid":member.id})
-        if infractions > 1:
-            embed = discord.Embed(title=f":warning: Infractions:", description=f"**{member.name}** has **{infractions} warnings**", color=diablocolor)
-            embed.add_field(name="NOTE:", value="Currently Diablo does NOT have a server-specific warnings count. The warning you see accounts for all warnings a person has.", inline=False)
-            await ctx.send(embed=embed)
-        elif infractions == 1:
-            embed = discord.Embed(title=f":warning: Infractions:",  description=f"**{member.name}** has **1 warning**", color=diablocolor)
-            embed.add_field(name="NOTE:", value="Currently Diablo does NOT have a server-specific warnings count. The warning you see accounts for all warnings a person has.", inline=False)
-            await ctx.send(embed=embed)
+            embed=discord.Embed(description=":octagonal_sign: Please specify a user to kick.", color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            await ctx.respond(embed=embed, delete_after=5.0)
         else:
-            embed = discord.Embed(title=f":warning: Infractions:", description=f"**{member.name}** has **0 warnings** :tada:", color=diablocolor)
-            embed.add_field(name="NOTE:", value="Currently Diablo does NOT have a server-specific warnings count. The warning you see accounts for all warnings a person has.", inline=False)
-            await ctx.send(embed=embed)
-
-    @tasks.loop(hours=730.001)
-    async def warnings_delete(self):
-        delete_infractions = collection.delete_many({})
-
-    @warnings.error
-    async def warnings_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(description=":octagonal_sign: Please specify a user to check warnings of.", color=0xCD1F1F)
-            await ctx.send(embed=embed, delete_after=2.0)
-        elif isinstance(error, commands.BadArgument):
-            embed = discord.Embed( description=":octagonal_sign: Either tag the user you want to check warnings of or check you wrote their name correctly.", color=0xCD1F1F)
-            await ctx.send(embed=embed, delete_after=2.0)
+            embed = discord.Embed(title="Something went wrong... ⚠", description=f'```{error}```', color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            await ctx.respond(embed=embed)
 
     # Ban
-    @commands.command()
-    @commands.guild_only()
+    @slash_command(name="ban", description="Bans a user from the server", guild_only=True)
     @commands.has_permissions(ban_members=True)
-    async def ban(self, ctx, member : discord.Member, *,  reason=None):
-        await member.ban(reason=f'{ctx.author.name}#{ctx.author.discriminator}: {reason}')
-        embed=discord.Embed(title=f"**{member}** `{member.id}` Banned", description=f"{member} was banned for {reason}", color=diablocolor)
-        await ctx.send(embed=embed)
-    @ban.error
+    async def ban(self, ctx, member : Option(discord.Member, description="Input user:"), reason : Option(str, description="Reason:", required=False)):
+        if member.id == ctx.author.id:
+            await ctx.respond("You cannot ban yourself.", delete_after=5.0)
+        elif member.id == self.client.user.id:
+            await ctx.respond("I'm sorry that this isn't working out, but I can't ban myself.", delete_after=5.0)
+        else:
+            await member.ban(reason=f'{ctx.author.name}#{ctx.author.discriminator}: {reason}')
+            embed=discord.Embed(color=diablocolor)
+            embed.add_field(name="Reason", value=str(reason))
+            embed.set_author(name=f"{member.name}#{member.discriminator} Banned", icon_url=str(member.display_avatar))
+            await ctx.respond(embed=embed)
+    @kick.error
     async def ban_error(self, ctx, error):
-            if isinstance(error, commands.MissingRequiredArgument):
-                embed=discord.Embed(description="Please specify a user to ban.", color=0xCD1F1F)
-                await ctx.send(embed=embed, delete_after=2.0)
-            elif isinstance(error, commands.BadArgument):
-                embed=discord.Embed(description="Either tag the user you want to ban or be sure to check you wrote their name correctly.", color=0xCD1F1F)
-                await ctx.send(embed=embed, delete_after=2.0)
+        if isinstance(error, commands.MissingRequiredArgument):
+            embed=discord.Embed(description=":octagonal_sign: Please specify a user to ban.", color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            await ctx.respond(embed=embed, delete_after=5.0)
+        else:
+            embed = discord.Embed(title="Something went wrong... ⚠", description=f'```{error}```', color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            await ctx.respond(embed=embed)
 
     # unban
-    @commands.command()
+    @slash_command(name="unban", description="Unbans a user from your server", guild_only=True, cog="""What do I put here?""")
     @commands.guild_only()
     @commands.has_permissions(ban_members=True)
     async def unban(self, ctx, *, member):
@@ -182,38 +135,48 @@ class Moderation(commands.Cog):
                     description=f"{member.name} was unbanned banned from the server.",
                     color=0x7289da
                 )
-                await ctx.send(embed=embed)
+                await ctx.respond(embed=embed)
                 return
     @unban.error
     async def unban_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
             embed=discord.Embed(description="Please specify a user to unban.", color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
             await ctx.send(embed=embed, delete_after=2.0)
         elif isinstance(error, commands.BadArgument):
             embed=discord.Embed(description="Make sure you wrote the user name and discriminator (tagline) correctly.", color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
             await ctx.send(embed=embed, delete_after=2.0)
+        else:
+            embed = discord.Embed(title="Something went wrong... ⚠", description=f'```{error}```', color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            await ctx.respond(embed=embed)
 
     # Purge (clear) command
-    @commands.command(aliases=['clear'])
-    @commands.guild_only()
+    @commands.slash_command(name="purge", description="Clears a specified amount of messages", guild_only=True)
     @commands.has_permissions(manage_messages=True)
     @commands.cooldown(rate=1, per=6.5, type=commands.BucketType.user)
-    async def purge(self, ctx, amount=1):
+    async def purge(self, ctx, amount: Option(int, description="How many messages do you want to delete?")):
         if not amount > 100 and amount >= 0:
             await ctx.channel.purge(limit=amount)
             embed = discord.Embed(description=f"{amount} messages cleared.", color=diablocolor)
-            await ctx.send(embed=embed, delete_after=2.0)
+            await ctx.respond(embed=embed, delete_after=2.0)
         elif amount < 0:
             embed = discord.Embed(description=f"That isn't possible, {ctx.author}.", color=0x8636d1)
-            await ctx.send(embed=embed, delete_after=2.0)
+            await ctx.respond(embed=embed, delete_after=2.0)
         elif amount > 100:
             embed = discord.Embed(description=f":octagonal_sign: **Purge limit cannot exceed 100.**", color=0xFF0000)
-            await ctx.send(embed=embed, delete_after=2.0)
+            await ctx.respond(embed=embed, delete_after=2.0)
     @purge.error
     async def purge_error(self, ctx, error):
         if isinstance(error, commands.BadArgument):
-            embed = discord.Embed(description="The amount you have inputted is invalid, please retry.", color=0xCD1F1F)
-            await ctx.send(embed=embed, delete_after=2.0)
+            embed = discord.Embed(title="Something went wrong... ⚠", description=f'```{error}```', color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            await ctx.respond(embed=embed)
+        else:
+            embed = discord.Embed(title="Something went wrong... ⚠", description=f'```{error}```', color=0xCD1F1F)
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            await ctx.respond(embed=embed)
 
 def setup(client):
     client.add_cog(Moderation(client))
