@@ -54,11 +54,11 @@ class AutoBan(commands.Cog):
     async def diablobans_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             embed = discord.Embed(title=":octagonal_sign: Something went wrong", description=f'```{error}```', color=0xCD1F1F)
-            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/skqwid/DIABLO/issues")
             await ctx.respond(embed=embed)
         else:
             embed = discord.Embed(title=":octagonal_sign: Something went wrong", description=f'```{error}```', color=0xCD1F1F)
-            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/skqwid/DIABLO/issues")
             await ctx.respond(embed=embed)
 
     # Automatic ban on database offenders, triggered by user join.
@@ -248,11 +248,11 @@ class AutoBan(commands.Cog):
     async def scan_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             embed = discord.Embed(title="Something went wrong... ⚠", description=f"```{error}```", color=0xCD1F1F)
-            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/skqwid/DIABLO/issues")
             await ctx.send(embed=embed)
         else:
             embed = discord.Embed(title="Something went wrong... ⚠", description=f'```{error}```', color=0xCD1F1F)
-            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/skqwid/DIABLO/issues")
             await ctx.respond(embed=embed)
 
     # Total number of Diablo offenders
@@ -265,7 +265,7 @@ class AutoBan(commands.Cog):
                 color=diablocolor,
                 timestamp=datetime.datetime.utcnow()
             )
-            embed.add_field(name="Global Bans (As of Oct 2021)", value=str(int(gb.read())))
+            embed.add_field(name="Global Bans (Since Oct 2021)", value=str(int(gb.read())))
             await ctx.respond(embed=embed)
 
     @tasks.loop(hours=24.0)

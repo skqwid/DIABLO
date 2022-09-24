@@ -99,11 +99,11 @@ class Basic(commands.Cog):
     async def whois_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             embed = discord.Embed(title="Something went wrong... ⚠", description=f"```{error}```", color=0xCD1F1F)
-            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/skqwid/DIABLO/issues")
             await ctx.send(embed=embed)
         else:
             embed = discord.Embed(title="Something went wrong... ⚠", description=f'```{error}```', color=0xCD1F1F)
-            embed.set_footer(text="If this error persists, contact us here: https://github.com/incipious/DIABLO/issues")
+            embed.set_footer(text="If this error persists, contact us here: https://github.com/skqwid/DIABLO/issues")
             await ctx.respond(embed=embed)
 
     # about
@@ -140,7 +140,7 @@ class Basic(commands.Cog):
     @slash_command(name="source", description="Returns the source code for the bot.", guild_only=True)
     @commands.guild_only()
     async def source(self, ctx):
-        embed=discord.Embed(title="Source", url="https://github.com/incipious/DIABLO", description="Here's the source link for Diablo.", color=diablocolor)
+        embed=discord.Embed(title="Source", url="https://github.com/skqwid/DIABLO", description="Here's the source link for Diablo.", color=diablocolor)
         await ctx.respond(embed=embed)
 
     # Vote Command
