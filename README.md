@@ -1,4 +1,5 @@
-# DIABLO
+# DIABLO (Closed)
+## ⚠ NOTICE: Diablo had officially ceased operations as of October 2022. Bot service is no longer supported.
 ### DIABLO - Database Influenced Automated Ban List of Offenders. 
 DIABLO syncs up with our databases on predators, such as pedophiles and zoophiles, and prevents them from joining servers that have DIABLO. DIABLO relies on cutting-edge infrastructure to ban predators from your server in mere milliseconds. Keep your server safe from  any potential predators with DIABLO.
 
